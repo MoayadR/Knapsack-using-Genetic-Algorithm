@@ -110,87 +110,126 @@ def is_population_feasiable(population:list[list] , w , c) -> bool:
     return False
 
 
+def parse_input_file(file_path):
+    test_cases = []
+    knapsack_sizes = []
+    
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+    
+    lines = list(map(lambda x: x.rstrip('\n') , lines))
+    lines = list(filter(lambda x : x if x != ' ' else None , lines))
+
+    num_of_testcases = int(lines[0])
+    
+    i = 1
+    for test in range(num_of_testcases):
+        knapsack_size = int(lines[i])
+        knapsack_sizes.append(knapsack_size)
+        i+=1
+        num_of_items = int(lines[i])
+        i+=1
+
+        w = [0] * num_of_items
+        v = [0] * num_of_items
+
+        for j in range(num_of_items):
+            temp_line = lines[i].split(' ')
+            w[j] = int(temp_line[0])
+            v[j] = int(temp_line[1])
+            i+=1
+
+        test_cases.append([w , v])
+
+    return test_cases , knapsack_sizes
 
 def main():
-    # test input
-    n = int(input())
-    c = int(input())
-    w = [0] * (n)
-    v = [0] * (n)
     Pc = 0.7
     Pm = 0.02
-    
-    # test input
-    for i in range(0, n):
-        w[i] = int(input())
-        v[i] = int(input())
 
     # creating chromosomes
-    chromosomes = create_chromosomes(n , 4)
 
-    FGBS = [0] * n # final generation feasiable solutions
-    FGBS_value = 0
-    OABS = [0] * n # overall best solution
-    OABS_value = 0
-    iteration = 0
+    test_cases , knapsack_sizes = parse_input_file('knapsack_input.txt')
 
-    while(iteration <= 100):
+    for test_case in range(len(test_cases)):
         print()
-        print(f"Iteration: {iteration}")
-        print(f"Chromosomes:{chromosomes}")
+        print(f"Test Case:{test_case}")
+        n = len(test_cases[test_case][0])
+        c = knapsack_sizes[test_case]
+        w = test_cases[test_case][0]
+        v = test_cases[test_case][1]
+        chromosomes = create_chromosomes(n , 4)
+        FGBS = [0] * n # final generation feasiable solutions
+        FGBS_value = 0
+        OABS = [0] * n # overall best solution
+        OABS_value = 0
+        iteration = 0
+        while(iteration <= 100):
+        # print()
+        # print(f"Iteration: {iteration}")
+        # print(f"Chromosomes:{chromosomes}")
             
         # get Best Overall Solution
+            for chromosome in chromosomes:
+                if is_feasible(chromosome ,w ,c):
+                    value = get_value(chromosome , v)
+                    if(value > OABS_value):
+                        OABS = deepcopy(chromosome)
+                        OABS_value = value
+            
+
+            # assigning ranks to each chromosome
+            ranks = rank_chromosomes(chromosomes,v)
+            # print(f"Ranks:{ranks}")
+
+            # getting the cummulative ranks
+            cumm_ranks = cummulative_rank(ranks)
+            # print(f"Cumm Ranks:{cumm_ranks}")
+
+            # getting selected chromosomes for crossover phase
+            selected = rank_selection(4 , cumm_ranks)
+            # print(f"Selected{selected}")
+
+            # getting the offsprins from the crossover
+            offsprings = crossover(selected , chromosomes , Pc)
+            # print(f"offSprings{offsprings}")
+
+            # applying mutation
+            mutation(offsprings , Pm)
+            # print(f"offSprings after mutation :{offsprings}")
+
+            # Generational replacement
+            chromosomes = deepcopy(offsprings)
+
+            # feisable population check
+            if is_population_feasiable(chromosomes , w , c):
+                iteration+=1
+        
+        
+        # get best solution in the last generation
         for chromosome in chromosomes:
             if is_feasible(chromosome ,w ,c):
                 value = get_value(chromosome , v)
-                if(value > OABS_value):
-                    OABS = deepcopy(chromosome)
-                    OABS_value = value
+                if(value > FGBS_value):
+                    FGBS = deepcopy(chromosome)
+                    FGBS_value = value
+
+        print(f"Knapsack Size:{c}")
+        print(f"Weight of the items:{w}" , f"Value of the items:{v}")
+        print(f"Feasible Solution in last Population:{FGBS}")
+        print(f"Feasible Num of Selected Items:{FGBS.count(1)}")
+        print(f"Feasible Total value of Selected Items:{get_value(FGBS , v)}")
+        print(f"Feasible Total weight of Selected Items:{get_weight(FGBS , w)}")
+        print()
+        print(f"Overall Best Solution:{OABS}")
+        print(f"Feasible Num of Selected Items:{OABS.count(1)}")
+        print(f"Feasible Total value of Selected Items:{get_value(OABS , v)}")
+        print(f"Feasible Total weight of Selected Items:{get_weight(OABS , w)}")
+
+
         
 
-        # getting pairs [value , index]
-        pairs = get_all_value_index_pair(chromosomes,v)
-        print(f"Pairs:{pairs}")
-
-        # assigning ranks to each chromosome
-        ranks = rank_chromosomes(chromosomes,v)
-        print(f"Ranks:{ranks}")
-
-        # getting the cummulative ranks
-        cumm_ranks = cummulative_rank(ranks)
-        print(f"Cumm Ranks:{cumm_ranks}")
-
-        # getting selected chromosomes for crossover phase
-        selected = rank_selection(4 , cumm_ranks)
-        print(f"Selected{selected}")
-
-        # getting the offsprins from the crossover
-        offsprings = crossover(selected , chromosomes , Pc)
-        print(f"offSprings{offsprings}")
-
-        # applying mutation
-        mutation(offsprings , Pm)
-        print(f"offSprings after mutation :{offsprings}")
-
-        # Generational replacement
-        chromosomes = deepcopy(offsprings)
-
-        # feisable population check
-        if is_population_feasiable(chromosomes , w , c):
-            iteration+=1
-    
-    
-    # get best solution in the last generation
-    for chromosome in chromosomes:
-        if is_feasible(chromosome ,w ,c):
-            value = get_value(chromosome , v)
-            if(value > FGBS_value):
-                FGBS = deepcopy(chromosome)
-                FGBS_value = value
-    
-    print(f"Feasible Solutions:{FGBS}")
-
-    print(f"Overall Best Solution:{OABS}")
+   
 
 if __name__ == '__main__':
     main()
